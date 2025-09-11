@@ -22,7 +22,7 @@ class PlantController extends Controller
 
         $validatedData = $request->validate([
             'common_name' => 'required|string|max:255',
-            'watering_general_benchmark' => 'required|string|max:255',
+            'watering_general_benchmark' => 'required|array|max:255',
         ]);
         $plant = Plant::create([
             'common_name' => $validatedData['common_name'],
