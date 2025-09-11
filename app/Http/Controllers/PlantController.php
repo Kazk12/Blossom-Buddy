@@ -34,7 +34,7 @@ class PlantController extends Controller
 
     public function show($name){
 
-        $plant = Plant::where('common_name', $name)->first();
+        $plant = Plant::where('common_name', 'LIKE', "%{$name}%")->first();
         if (!$plant) {
             return $this->error(null, 'Plant not found', 404);
         }
