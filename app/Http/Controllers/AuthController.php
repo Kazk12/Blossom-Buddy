@@ -7,10 +7,28 @@ use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use OpenApi\Annotations as OA;
+
 
 class AuthController extends Controller
 {
     use HttpResponses;
+
+        /**
+     * @OA\POST(
+     *     path="/register",
+     *     summary="Register a new user",
+     *     parameters={
+     *         @OA\Parameter(name="name", in="query", required=true, @OA\Schema(type="string")),
+     *         @OA\Parameter(name="email", in="query", required=true, @OA\Schema(type="string")),
+     *         @OA\Parameter(name="password", in="query", required=true, @OA\Schema(type="string")),
+     *         @OA\Parameter(name="password_confirmation", in="query", required=true, @OA\Schema(type="string")),
+     *     },
+     *     tags={"Auth"},
+     *     @OA\Response(response=201, description="User registered successfully"),
+     *     @OA\Response(response=400, description="Invalid request")
+     * )
+     */
 
     public function register(Request $request)
     {
@@ -31,6 +49,20 @@ class AuthController extends Controller
         return response()->json(['data' => $user, 'access_token' => $token, 'token_type' => 'Bearer'], 201);
     }
 
+        /**
+     * @OA\POST(
+     *     path="/login",
+     *     summary="Login a user",
+     *     parameters={
+     *         @OA\Parameter(name="email", in="query", required=true, @OA\Schema(type="string")),
+     *         @OA\Parameter(name="password", in="query", required=true, @OA\Schema(type="string")),
+     *     },
+     *     tags={"Auth"},
+     *     @OA\Response(response=200, description="Login successful"),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -47,6 +79,17 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Login successful', 'access_token' => $token, 'token_type' => 'Bearer']);
     }
+
+    /**
+     * @OA\POST(
+     *     path="/logout",
+     *     summary="Logout a user",
+     *     parameters={},
+     *     tags={"Auth"},
+     *     @OA\Response(response=200, description="Logout successful"),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
 
     public function logout(Request $request)
     {
