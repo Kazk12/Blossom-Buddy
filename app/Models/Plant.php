@@ -10,7 +10,15 @@ class Plant extends Model
 
     public $fillable = [
         'common_name',
-        'watering_general_benchmark'
+        'watering_general_benchmark',
+        'api_id',
+        'watering',
+        'watering_period',
+        'flowers',
+        'fruits',
+        'leaf',
+        'growth_rate',
+        'maintenance'
     ];
 
     public $casts = [
