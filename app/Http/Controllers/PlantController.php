@@ -14,20 +14,29 @@ class PlantController extends Controller
     use HttpResponses;
 
     /**
- * @OA\Get(
- *     path="/plant",
- *     summary="Get a list of plants",
- *     tags={"Plants"},
- *     @OA\Response(response=200, description="Successful operation"),
- *     @OA\Response(response=400, description="Invalid request")
- * )
- */
-
-    public function index(Request $request){
+     * @OA\Get(
+     *     path="/plants",
+     *     summary="Search plants or get all plants",
+     *     tags={"Plants"},
+     *     @OA\Parameter(
+     *         name="q",
+     *         in="query",
+     *         description="Search query for plant names",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(response=200, description="Successful operation")
+     * )
+     */
+    public function index(Request $request)
+    {
+        if ($request->has('q')) {
+            $results = app(\App\Services\PlantService::class)->searchPlantByName($request->q);
+            return $this->success($results);
+        }
 
         $plants = Plant::all();
         return $this->success($plants);
-
     }
 
     /**
@@ -63,26 +72,23 @@ class PlantController extends Controller
     }
 
        /**
- * @OA\Get(
- *     path="/plant/{name}",
- *     summary="Get a specific plant by name",
- *     parameters={
- *         @OA\Parameter(name="name", in="path", required=true, @OA\Schema(type="string")),
- *     },
- *     tags={"Plants"},
- *     @OA\Response(response=200, description="Successful operation"),
- *     @OA\Response(response=404, description="Plant not found")
- * )
- */
+     * @OA\Get(
+     *     path="/plants/{name}",
+     *     summary="Get complete plant data by name",
+     *     tags={"Plants"},
+     *     @OA\Response(response=200, description="Successful operation"),
+     *     @OA\Response(response=404, description="Plant not found")
+     * )
+     */
+    public function show($name)
+    {
+        $plantData = app(\App\Services\PlantService::class)->checkAndCompleteData($name);
 
-    public function show($name){
-
-        $plant = Plant::where('common_name', 'LIKE', "%{$name}%")->first();
-        if (!$plant) {
+        if (!$plantData) {
             return $this->error(null, 'Plant not found', 404);
         }
-        return $this->success($plant);
 
+        return $this->success($plantData);
     }
 
          /**
