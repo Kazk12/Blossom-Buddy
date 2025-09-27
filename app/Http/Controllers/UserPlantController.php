@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Plant;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use OpenApi\Annotations as OA;
 
 
@@ -36,35 +37,55 @@ class UserPlantController extends Controller
     /**
      * @OA\POST(
      *     path="/user/plant",
-     *     summary="Create a new plant for the authenticated user",
+     *     summary="Add a plant to user's collection with optional city",
      *    parameters={
      *         @OA\Parameter(name="common_name", in="query", required=true, @OA\Schema(type="string")),
-     *         @OA\Parameter(name="watering_general_benchmark", in="query", required=true, @OA\Schema(type="array", @OA\Items(type="string"))),
+     *         @OA\Parameter(
+     *             name="city",
+     *             in="query",
+     *             required=false,
+     *             @OA\Schema(
+     *                 type="string",
+     *                 enum={"Paris", "Lyon", "Marseille", "Bordeaux", "Lille", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Rennes"}
+     *             ),
+     *             description="The city where the plant is located"
+     *         ),
      *     },
      *     tags={"User Plants"},
-     *     @OA\Response(response=201, description="Plant created successfully"),
+     *     @OA\Response(response=201, description="Plant added successfully"),
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
 
        public function store(Request $request){
-
         $validated = $request->validate([
             'common_name' => 'required|string|max:255',
-            'watering_general_benchmark' => 'required|array',
+            'city' => ['nullable', 'string', Rule::in(config('cities.available'))]
         ]);
 
         $user = $request->user();
+        
+        // Recherche de la plante dans la base de données
+        $plant = Plant::where('common_name', $request->common_name)->first();
+        
+        if (!$plant) {
+            return $this->error(null, 'Plant not found in database', 404);
+        }
 
-        $plant = Plant::create([
-            'common_name' => $request->common_name,
-            'watering_general_benchmark' => json_encode($request->watering_general_benchmark),
+        // Vérifie si l'utilisateur a déjà cette plante
+        if ($user->plants()->where('plant_id', $plant->id)->exists()) {
+            return $this->error(null, 'Plant already in your collection', 400);
+        }
+
+        // Attache la plante à l'utilisateur avec la ville (many-to-many avec données pivot)
+        $user->plants()->attach($plant->id, [
+            'city' => $request->city,
+            'created_at' => now(),
+            'updated_at' => now()
         ]);
+        
 
-        // Attach the plant to the user (many-to-many)
-        $user->plants()->attach($plant->id);
-
-        return $this->success($plant, "Plant succesfully created by user " . $user->name, 201);
+        return $this->success($plant, "Plant successfully added to user's collection", 201);
     }
 
     /**
@@ -81,16 +102,17 @@ class UserPlantController extends Controller
      */
 
     public function destroy($id, Request $request){
-
         $user = $request->user();
         $plant = $user->plants()->find($id);
+        
         if (!$plant) {
-            return $this->error(null, 'Plant not found', 404);
+            return $this->error(null, 'Plant not found in your collection', 404);
         }
-        // Detach the plant from the user before deleting
+
+        // On détache uniquement la plante de l'utilisateur sans la supprimer de la base de données
         $user->plants()->detach($plant->id);
-        $plant->delete();
-        return $this->success(null, 'Plant deleted successfully', 201);
+        
+        return $this->success(null, 'Plant successfully removed from your collection', 200);
 
     }
 }
