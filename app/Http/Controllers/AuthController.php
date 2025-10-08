@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Interfaces\AuthRepositoryInterface;
 use App\Models\User;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class AuthController extends Controller
      * )
      */
 
-    public function register(Request $request)
+    public function register(Request $request, AuthRepositoryInterface $authRepository)
     {
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
@@ -38,7 +39,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
+        $user = $authRepository->createUser([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
@@ -63,7 +64,7 @@ class AuthController extends Controller
      * )
      */
 
-    public function login(Request $request)
+    public function login(Request $request, AuthRepositoryInterface $authRepository)
     {
         $credentials = $request->validate([
             'email' => 'required|email',
@@ -74,7 +75,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $user = $request->user();
+        $user = $authRepository->findByEmail($request->email);
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json(['message' => 'Login successful', 'access_token' => $token, 'token_type' => 'Bearer']);
