@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Interfaces\AuthRepositoryInterface;
+use App\Interfaces\PlantRepositoryInterface;
 use App\Interfaces\PlantsServiceInterface;
 use App\Interfaces\WeatherServiceInterface;
 use App\Repositories\AuthRepository;
+use App\Repositories\PlantRepository;
 use App\Services\PlantService;
 use App\Services\WeatherService;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PlantsServiceInterface::class, PlantService::class);
         $this->app->bind(WeatherServiceInterface::class, WeatherService::class);
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
+        $this->app->bind(PlantRepositoryInterface::class, PlantRepository::class);
     }
 
     /**

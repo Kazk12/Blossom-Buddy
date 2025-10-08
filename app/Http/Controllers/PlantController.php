@@ -13,6 +13,13 @@ class PlantController extends Controller
 {
     use HttpResponses;
 
+    protected $plantService;
+
+    public function __construct(\App\Interfaces\PlantsServiceInterface $plantService)
+    {
+        $this->plantService = $plantService;
+    }
+
     /**
      * @OA\Get(
      *     path="/plants",
@@ -31,7 +38,7 @@ class PlantController extends Controller
     public function index(Request $request)
     {
         if ($request->has('q')) {
-            $results = app(\App\Services\PlantService::class)->searchPlantByName($request->q);
+            $results = $this->plantService->searchPlantByName($request->q);
             return $this->success($results);
         }
 
@@ -71,7 +78,7 @@ class PlantController extends Controller
 
     }
 
-       /**
+    /**
      * @OA\Get(
      *     path="/plants/{name}",
      *     summary="Get complete plant data by name",
@@ -82,7 +89,7 @@ class PlantController extends Controller
      */
     public function show($name)
     {
-        $plantData = app(\App\Services\PlantService::class)->checkAndCompleteData($name);
+    $plantData = $this->plantService->checkAndCompleteData($name);
 
         if (!$plantData) {
             return $this->error(null, 'Plant not found', 404);
@@ -91,7 +98,7 @@ class PlantController extends Controller
         return $this->success($plantData);
     }
 
-         /**
+        /**
  * @OA\Delete(
  *     path="/plant/{id}",
  *     summary="Delete a specific plant",

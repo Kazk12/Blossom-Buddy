@@ -2,7 +2,7 @@
 namespace App\Services;
 
 use App\Interfaces\PlantsServiceInterface;
-use App\Models\Plant;
+use App\Interfaces\PlantRepositoryInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -24,13 +24,17 @@ class PlantService implements PlantsServiceInterface
      * @param int $maxRetries
      * @return array
      */
+    protected $plantRepository;
+
+    public function __construct(PlantRepositoryInterface $plantRepository)
+    {
+        $this->plantRepository = $plantRepository;
+    }
+
     public function searchPlantByName(string $name, int $maxRetries = 3): array
     {
-        // 1. Recherche d'abord dans la base de données
-        $dbResults = Plant::where('common_name', 'LIKE', '%' . $name . '%')
-            ->limit($this->maxApiSearchResults)
-            ->get()
-            ->toArray();
+        // 1. Recherche d'abord dans la base de données via repository
+        $dbResults = $this->plantRepository->searchByCommonName($name, $this->maxApiSearchResults);
 
         // Si on a assez de résultats dans la DB, on s'arrête là
         if (count($dbResults) >= $this->minDbSearchResults) {
@@ -94,7 +98,8 @@ class PlantService implements PlantsServiceInterface
 
                 if ($plantData && !empty($plantData)) {
                     $plantDataFiltered = $this->filterPlantData($plantData);
-                    $this->storePlantData($plantDataFiltered);
+                    // Use repository to upsert
+                    $this->plantRepository->upsertByApiId($plantDataFiltered);
                     $processedCount++;
                     
                     // Log de progression
@@ -200,11 +205,8 @@ class PlantService implements PlantsServiceInterface
    
     private function storePlantData(array $plantData): void
     {
-        // Utilisation de upsert pour éviter les doublons basés sur api_id
-        Plant::updateOrCreate(
-            ['api_id' => $plantData['api_id']],
-            $plantData
-        );
+        // Deprecated: store via repository. Keep method for backward compatibility.
+        $this->plantRepository->upsertByApiId($plantData);
     }
 
     /**
@@ -214,8 +216,9 @@ class PlantService implements PlantsServiceInterface
      */
     public function checkAndCompleteData(string $name): ?array
     {
-        // Chercher d'abord dans la DB
-        $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
+    // Chercher d'abord dans la DB via repository
+    $dbResults = $this->plantRepository->searchByCommonName($name, 1);
+    $plant = !empty($dbResults) ? (object)$dbResults[0] : null;
         
         if (!$plant) {
             // Si pas dans la DB, chercher via l'API
@@ -233,13 +236,13 @@ class PlantService implements PlantsServiceInterface
 
             // Filtrer et sauvegarder les données
             $filteredData = $this->filterPlantData($completeData);
-            $this->storePlantData($filteredData);
+            $this->plantRepository->upsertByApiId($filteredData);
             return $filteredData;
         }
 
         // Vérifier si les données sont complètes
         if ($this->isPlantDataComplete($plant)) {
-            return $plant->toArray();
+            return (array)$plant;
         }
 
         // Compléter les données manquantes via l'API
@@ -247,7 +250,7 @@ class PlantService implements PlantsServiceInterface
             $completeData = $this->getPlantData($plant->api_id);
             if (!empty($completeData)) {
                 $filteredData = $this->filterPlantData($completeData);
-                $this->storePlantData($filteredData);
+                $this->plantRepository->upsertByApiId($filteredData);
                 return $filteredData;
             }
         }
