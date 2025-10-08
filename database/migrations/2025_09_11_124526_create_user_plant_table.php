@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignIdFor(Plant::class)->constrained()->cascadeOnDelete();
             $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
             $table->string('city')->nullable();
+            
             $table->timestamps();
         });
     }

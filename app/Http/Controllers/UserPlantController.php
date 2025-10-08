@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Plant;
 use App\Traits\HttpResponses;
+use App\Interfaces\WeatherServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use OpenApi\Annotations as OA;
@@ -13,6 +14,13 @@ use OpenApi\Annotations as OA;
 class UserPlantController extends Controller
 {
     use HttpResponses;
+
+    protected $weatherService;
+
+    public function __construct(WeatherServiceInterface $weatherService)
+    {
+        $this->weatherService = $weatherService;
+    }
 
         /**
      * @OA\GET(
@@ -77,15 +85,33 @@ class UserPlantController extends Controller
             return $this->error(null, 'Plant already in your collection', 400);
         }
 
-        // Attache la plante à l'utilisateur avec la ville (many-to-many avec données pivot)
+        // Attache la plante à l'utilisateur avec la ville
         $user->plants()->attach($plant->id, [
             'city' => $request->city,
             'created_at' => now(),
             'updated_at' => now()
         ]);
-        
 
-        return $this->success($plant, "Plant successfully added to user's collection", 201);
+        // Si une ville est spécifiée, récupérer les recommandations météo
+        $weatherInfo = null;
+        $needsWater = true; // Par défaut, on suggère d'arroser
+        $currentWeather = null;
+
+        if ($request->city) {
+            $weatherInfo = $this->weatherService->getWeatherForCity($request->city);
+            if (is_array($weatherInfo) && isset($weatherInfo['needs_water'])) {
+                $needsWater = $weatherInfo['needs_water'];
+                $currentWeather = $weatherInfo['current_weather'] ?? null;
+            }
+        }
+
+        $response = [
+            'plant' => $plant,
+            'needs_water' => $needsWater,
+            'weather' => $currentWeather
+        ];
+
+        return $this->success($response, "Plant successfully added to user's collection", 201);
     }
 
     /**
