@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Plant;
 use App\Traits\HttpResponses;
 use App\Interfaces\WeatherServiceInterface;
+use App\Interfaces\WateringStrategyInterface;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use OpenApi\Annotations as OA;
@@ -16,10 +17,12 @@ class UserPlantController extends Controller
     use HttpResponses;
 
     protected $weatherService;
+    protected $wateringStrategy;
 
-    public function __construct(WeatherServiceInterface $weatherService)
+    public function __construct(WeatherServiceInterface $weatherService, WateringStrategyInterface $wateringStrategy)
     {
         $this->weatherService = $weatherService;
+        $this->wateringStrategy = $wateringStrategy;
     }
 
         /**
@@ -105,10 +108,17 @@ class UserPlantController extends Controller
             }
         }
 
+        $daysUntilNextWatering = $this->wateringStrategy->calculateDaysUntilNextWatering([
+            'plant' => $plant->toArray(),
+            'weather' => $currentWeather ?? [],
+            'needs_water' => $needsWater
+        ]);
+
         $response = [
             'plant' => $plant,
             'needs_water' => $needsWater,
-            'weather' => $currentWeather
+            'weather' => $currentWeather,
+            'days_until_next_watering' => $daysUntilNextWatering
         ];
 
         return $this->success($response, "Plant successfully added to user's collection", 201);
