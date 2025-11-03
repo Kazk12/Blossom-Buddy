@@ -205,11 +205,11 @@ class PlantService implements PlantsServiceInterface
     }
 
    
-    private function storePlantData(array $plantData): void
-    {
-        // Deprecated: store via repository. Keep method for backward compatibility.
-        $this->plantRepository->upsertByApiId($plantData);
-    }
+    // private function storePlantData(array $plantData): void
+    // {
+        
+    //     $this->plantRepository->upsertByApiId($plantData);
+    // }
 
     /**
      * Vérifie si les données d'une plante sont complètes et les complète via l'API si nécessaire

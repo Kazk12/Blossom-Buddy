@@ -5,12 +5,6 @@ use App\Interfaces\LoggingServiceInterface;
 use Illuminate\Support\Facades\Log;
 class LoggingService implements LoggingServiceInterface
 {
-    public function log(string $message): void
-    {
-        // Default to info for the generic log()
-        Log::info($message);
-    }
-
     public function logInfo(string $message): void
     {
         Log::info($message);

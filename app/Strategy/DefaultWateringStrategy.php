@@ -8,7 +8,6 @@ class DefaultWateringStrategy implements WateringStrategyInterface
 {
     public function calculateDaysUntilNextWatering(array $plantData): int
     {
-        // Basic logic: water every 7 days
         return 7;
     }
 }

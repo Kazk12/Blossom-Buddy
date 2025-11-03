@@ -25,11 +25,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Bind logging service first so it can be injected into the decorator
         $this->app->bind(LoggingServiceInterface::class, LoggingService::class);
-
-        // Bind PlantsServiceInterface to the logging decorator which wraps the concrete PlantService.
-        // The concrete PlantService will be resolved by the container so its dependencies are injected normally.
         $this->app->bind(PlantsServiceInterface::class, function ($app) {
             return new PlantServiceLoggingDecorator(
                 $app->make(PlantService::class),
@@ -37,7 +33,7 @@ class AppServiceProvider extends ServiceProvider
             );
         });
         $this->app->bind(WeatherServiceInterface::class, WeatherService::class);
-    $this->app->bind(WateringStrategyInterface::class, DefaultWateringStrategy::class);
+        $this->app->bind(WateringStrategyInterface::class, DefaultWateringStrategy::class);
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(PlantRepositoryInterface::class, PlantRepository::class);
         
