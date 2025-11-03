@@ -3,8 +3,8 @@ namespace App\Services;
 
 use App\Interfaces\PlantsServiceInterface;
 use App\Interfaces\PlantRepositoryInterface;
+use App\Interfaces\LoggingServiceInterface;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 // Service appelé dans la commande FetchPlants
 class PlantService implements PlantsServiceInterface
@@ -25,10 +25,12 @@ class PlantService implements PlantsServiceInterface
      * @return array
      */
     protected $plantRepository;
+    private LoggingServiceInterface $loggingService;
 
-    public function __construct(PlantRepositoryInterface $plantRepository)
+    public function __construct(PlantRepositoryInterface $plantRepository, LoggingServiceInterface $loggingService)
     {
         $this->plantRepository = $plantRepository;
+        $this->loggingService = $loggingService;
     }
 
     public function searchPlantByName(string $name, int $maxRetries = 3): array
@@ -83,17 +85,17 @@ class PlantService implements PlantsServiceInterface
         $cacheHits = 0;
         $apiHits = 0;
 
-        Log::info("Starting plant data fetch process...");
+    $this->loggingService->logDebug("Starting plant data fetch process...");
 
         for ($id = 200; $id <= 203; $id++) {
             try {
                 // Vérifier le taux limite toutes les 10 requêtes
                 if ($processedCount > 0 && $processedCount % $batchSize === 0) {
                     sleep(2); // Pause de 2 secondes entre les lots
-                    Log::info("Batch complete, taking a short break...");
+                    $this->loggingService->logDebug("Batch complete, taking a short break...");
                 }
 
-                Log::info("Processing plant ID: {$id}");
+                $this->loggingService->logDebug("Processing plant ID: {$id}");
                 $plantData = $this->getPlantData($id, $maxRetries, $cacheHits, $apiHits);
 
                 if ($plantData && !empty($plantData)) {
@@ -103,10 +105,10 @@ class PlantService implements PlantsServiceInterface
                     $processedCount++;
                     
                     // Log de progression
-                    Log::info("Processed plant {$id} ({$processedCount} total)");
+                    $this->loggingService->logDebug("Processed plant {$id} ({$processedCount} total)");
                 }
             } catch (\Exception $e) {
-                Log::error("Failed to process plant {$id}: " . $e->getMessage());
+                $this->loggingService->logError("Failed to process plant {$id}: " . $e->getMessage());
                 continue;
             }
         }
@@ -122,12 +124,12 @@ class PlantService implements PlantsServiceInterface
         // Vérifier si les données sont en cache
         if (cache()->has($cacheKey)) {
             $cacheHits++;
-            Log::info("✓ Retrieved plant {$id} from CACHE (Cache hits: {$cacheHits})");
+            $this->loggingService->logDebug("✓ Retrieved plant {$id} from CACHE (Cache hits: {$cacheHits})");
             return cache()->get($cacheKey);
         }
 
-        $apiHits++;
-        Log::info("→ Fetching plant {$id} from API (API calls: {$apiHits})");
+    $apiHits++;
+    $this->loggingService->logDebug("→ Fetching plant {$id} from API (API calls: {$apiHits})");
 
         // Sinon, faire l'appel API avec retry
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
@@ -137,7 +139,7 @@ class PlantService implements PlantsServiceInterface
                 if (!empty($plantData)) {
                     // Mettre en cache pour 24 heures
                     cache()->put($cacheKey, $plantData, now()->addSeconds($this->cacheDuration));
-                    Log::info("Stored plant {$id} in cache");
+                    $this->loggingService->logDebug("Stored plant {$id} in cache");
                     return $plantData;
                 }
 
@@ -145,7 +147,7 @@ class PlantService implements PlantsServiceInterface
                     sleep(2); // Attendre 2 secondes avant de réessayer
                 }
             } catch (\Exception $e) {
-                Log::warning("Attempt {$attempt} failed for plant {$id}: " . $e->getMessage());
+                $this->loggingService->logWarning("Attempt {$attempt} failed for plant {$id}: " . $e->getMessage());
                 
                 if ($attempt === $maxRetries) {
                     throw $e;
@@ -177,7 +179,7 @@ class PlantService implements PlantsServiceInterface
         if ($response->successful()) {
             return $response->json();
         } else {
-            Log::error("Failed to fetch plant with ID {$id}: " . $response->body());
+            $this->loggingService->logError("Failed to fetch plant with ID {$id}: " . $response->body());
             return [];
         }
     }
