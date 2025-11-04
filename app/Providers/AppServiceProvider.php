@@ -33,7 +33,12 @@ class AppServiceProvider extends ServiceProvider
             );
         });
         $this->app->bind(WeatherServiceInterface::class, WeatherService::class);
+        // On garde le binding par défaut pour compatibilité, mais nous utilisons
+        // maintenant une fabrique pour choisir dynamiquement la stratégie par plante.
         $this->app->bind(WateringStrategyInterface::class, DefaultWateringStrategy::class);
+        $this->app->singleton(\App\Strategy\WateringStrategyFactory::class, function ($app) {
+            return new \App\Strategy\WateringStrategyFactory($app);
+        });
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(PlantRepositoryInterface::class, PlantRepository::class);
         

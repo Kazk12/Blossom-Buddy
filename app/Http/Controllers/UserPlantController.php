@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Plant;
 use App\Traits\HttpResponses;
 use App\Interfaces\WeatherServiceInterface;
-use App\Interfaces\WateringStrategyInterface;
+use App\Strategy\WateringStrategyFactory;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use OpenApi\Annotations as OA;
+use Carbon\Carbon;
 
 
 
@@ -17,12 +18,15 @@ class UserPlantController extends Controller
     use HttpResponses;
 
     protected $weatherService;
-    protected $wateringStrategy;
+    protected $wateringStrategyFactory;
 
-    public function __construct(WeatherServiceInterface $weatherService, WateringStrategyInterface $wateringStrategy)
+    /**
+     * Injecte le service météo et la fabrique de stratégies d'arrosage.
+     */
+    public function __construct(WeatherServiceInterface $weatherService, WateringStrategyFactory $wateringStrategyFactory)
     {
         $this->weatherService = $weatherService;
-        $this->wateringStrategy = $wateringStrategy;
+        $this->wateringStrategyFactory = $wateringStrategyFactory;
     }
 
         /**
@@ -108,17 +112,35 @@ class UserPlantController extends Controller
             }
         }
 
-        $daysUntilNextWatering = $this->wateringStrategy->calculateDaysUntilNextWatering([
-            'plant' => $plant->toArray(),
-            'weather' => $currentWeather ?? [],
-            'needs_water' => $needsWater
-        ]);
+        // Choisir la stratégie adaptée à la plante
+        $strategy = $this->wateringStrategyFactory->getStrategyForPlant($plant);
+
+        $daysUntilNextWatering = $strategy->calculateDaysUntilNextWatering(
+            $plant,
+            $currentWeather ?? [],
+            $needsWater
+        );
+
+        // Calculer une date exacte pour le prochain arrosage (format chaîne lisible)
+    // Calculer la date exacte du prochain arrosage
+    $nextWateringCarbon = now()->addDays($daysUntilNextWatering);
+
+    // Utiliser ISO8601 pour machine-readability
+    $nextWateringAt = $nextWateringCarbon->toIso8601String();
+
+    // Version lisible pour l'utilisateur (français) et relative
+    // ex: "jeudi 6 novembre 2025 à 09:00" et "dans 3 jours"
+    $nextWateringHuman = $nextWateringCarbon->locale('fr')->isoFormat('dddd D MMMM YYYY [à] HH:mm');
+    $nextWateringRelative = $nextWateringCarbon->locale('fr')->diffForHumans();
 
         $response = [
             'plant' => $plant,
             'needs_water' => $needsWater,
             'weather' => $currentWeather,
-            'days_until_next_watering' => $daysUntilNextWatering
+            // Date ISO8601 (machine) et deux formats lisibles en français
+            'next_watering_at' => $nextWateringAt,
+            'next_watering_human' => $nextWateringHuman,
+            'next_watering_relative' => $nextWateringRelative,
         ];
 
         return $this->success($response, "Plant successfully added to user's collection", 201);
